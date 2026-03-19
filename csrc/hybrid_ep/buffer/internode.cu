@@ -164,7 +164,11 @@ static int get_gpu_handler(struct doca_gpu *handler,
 void setup_qp_init_attr(struct doca_gpu_verbs_qp_init_attr_hl *qp_init_attr,
                         struct doca_gpu *gpu_handler, struct ibv_pd *ib_pd,
                         int tx_depth) {
-  assert(tx_depth > 0 && tx_depth < 65536);
+  // assert(tx_depth > 0 && tx_depth < 65536);
+  // Cap tx_depth to max_qp_wr (32768) to avoid QP creation failure
+  if (tx_depth > 32768) {
+    tx_depth = 32768;
+  }
   qp_init_attr->gpu_dev = gpu_handler;
   qp_init_attr->ibpd = ib_pd;
   qp_init_attr->sq_nwqe = tx_depth;

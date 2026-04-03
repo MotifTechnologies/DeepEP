@@ -530,7 +530,7 @@ class HybridEPBuffer:
             )
 
             # Cache num_permuted_tokens and tokens_per_expert for sync-free recompute.
-            if cached_tokens_per_expert is not None and (tokens_per_expert is None or tokens_per_expert.numel() == 0):
+            if cached_tokens_per_expert is not None and tokens_per_expert.numel() == 0:
                 tokens_per_expert = cached_tokens_per_expert
             if cached_num_permuted_tokens is None:
                 if non_blocking:

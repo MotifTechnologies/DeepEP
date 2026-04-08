@@ -192,9 +192,10 @@ std::string NVCCCompiler::get_dispatch_code(HybridEpConfigInstance config) {
       (config.token_data_type == APP_TOKEN_DATA_TYPE::UINT8) ? "uint8_t" : "uint16_t";
 
   return R"(
+        #define SCALE_BLOCK_SIZE )" + std::to_string(config.scale_block_size) + R"(
         #include "hybrid_ep_backend.cuh"
         #include <any>
-        
+
         extern "C" {
           std::any get_function_ptr() {
             std::any func_ptr = &hybrid_ep::hybrid_ep<)" +
@@ -212,6 +213,7 @@ std::string NVCCCompiler::get_dispatch_code(HybridEpConfigInstance config) {
 
 std::string NVCCCompiler::get_combine_code(HybridEpConfigInstance config) {
   return R"(
+        #define SCALE_BLOCK_SIZE )" + std::to_string(config.scale_block_size) + R"(
         #include "hybrid_ep_backend.cuh"
         #include <any>
 
@@ -338,6 +340,7 @@ void KernelCache::run_dispatch_kernel(
         config.num_of_ranks_per_node,
         config.num_of_nodes,
         type_to_string(config.token_data_type),
+        config.scale_block_size,
         config.num_of_stages_dispatch_api,
         config.num_of_stages_permute_block_dispatch_api,
         config.num_of_in_flight_s2g_dispatch_api,
@@ -386,6 +389,7 @@ void KernelCache::run_combine_kernel(
         config.num_of_experts_per_rank,
         config.num_of_ranks_per_node,
         config.num_of_nodes,
+        config.scale_block_size,
         config.num_of_stages_g2s_combine_api,
         config.num_of_stages_s2g_combine_api,
         config.num_of_stages_g2s_unpermute_block,

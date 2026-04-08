@@ -22,6 +22,7 @@ struct BufferConfig {
   int num_of_ranks_per_node;
   int num_of_nodes;
   APP_TOKEN_DATA_TYPE token_data_type;
+  int scale_block_size = 128; // FP8 scale factor granularity: number of elements per scale factor (128 or 32)
   int num_of_blocks_preprocessing_api;
   int num_of_blocks_dispatch_api;
   int num_of_blocks_combine_api;
@@ -37,7 +38,9 @@ struct BufferConfig {
    bool is_valid(){
     bool valid = true;
     if (token_data_type == APP_TOKEN_DATA_TYPE::UINT8) {
-      valid &= (hidden_dim % 512 == 0); // Make TMA work in scaling factor.
+      valid &= (scale_block_size == 128 || scale_block_size == 32);
+      // TMA requires (hidden_dim / scale_block_size) * sizeof(float) to be 16B-aligned
+      valid &= (hidden_dim % (scale_block_size * 4) == 0);
     } else {
       valid &= (hidden_dim % 16 == 0); // Make TMA work.
     }
@@ -45,8 +48,8 @@ struct BufferConfig {
     // TMA requires (num_of_tokens_per_chunk * num_of_ranks_per_node * 4) % 16 == 0
     valid &= ((num_of_tokens_per_chunk_dispatch_api * num_of_ranks_per_node) % 4 == 0);
     if(!valid){
-      fprintf(stderr, "[Error] Invalid BufferConfig: hidden_dim=%d, num_of_experts_per_rank=%d, num_of_ranks_per_node=%d, num_of_tokens_per_chunk_dispatch_api=%d\n", 
-              hidden_dim, num_of_experts_per_rank, num_of_ranks_per_node, num_of_tokens_per_chunk_dispatch_api);
+      fprintf(stderr, "[Error] Invalid BufferConfig: hidden_dim=%d, num_of_experts_per_rank=%d, num_of_ranks_per_node=%d, num_of_tokens_per_chunk_dispatch_api=%d, scale_block_size=%d\n",
+              hidden_dim, num_of_experts_per_rank, num_of_ranks_per_node, num_of_tokens_per_chunk_dispatch_api, scale_block_size);
       fflush(stderr);
     }
     return valid;
@@ -81,6 +84,7 @@ struct HybridEpConfigInstance {
    *  Dispatch API Config
    */
   APP_TOKEN_DATA_TYPE token_data_type;
+  int scale_block_size = 128; // FP8 scale factor granularity: number of elements per scale factor (128 or 32)
   int num_of_stages_dispatch_api;
   int num_of_stages_permute_block_dispatch_api;
   int num_of_in_flight_s2g_dispatch_api;
@@ -112,7 +116,9 @@ struct HybridEpConfigInstance {
   bool is_valid(bool fuse_permute_dispatch = false){
     bool valid = true;
     if (token_data_type == APP_TOKEN_DATA_TYPE::UINT8) {
-      valid &= (hidden_dim % 512 == 0); // Make TMA work in scaling factor.
+      valid &= (scale_block_size == 128 || scale_block_size == 32);
+      // TMA requires (hidden_dim / scale_block_size) * sizeof(float) to be 16B-aligned
+      valid &= (hidden_dim % (scale_block_size * 4) == 0);
     } else {
       valid &= (hidden_dim % 16 == 0); // Make TMA work.
     }
@@ -131,8 +137,8 @@ struct HybridEpConfigInstance {
       valid &= chunk_match;
     }
     if(!valid){
-      fprintf(stderr, "[Error] Invalid HybridEpConfigInstance: hidden_dim=%d, num_of_experts_per_rank=%d, num_of_ranks_per_node=%d, num_of_tokens_per_chunk_dispatch_api=%d\n", 
-              hidden_dim, num_of_experts_per_rank, num_of_ranks_per_node, num_of_tokens_per_chunk_dispatch_api);
+      fprintf(stderr, "[Error] Invalid HybridEpConfigInstance: hidden_dim=%d, num_of_experts_per_rank=%d, num_of_ranks_per_node=%d, num_of_tokens_per_chunk_dispatch_api=%d, scale_block_size=%d\n",
+              hidden_dim, num_of_experts_per_rank, num_of_ranks_per_node, num_of_tokens_per_chunk_dispatch_api, scale_block_size);
       fflush(stderr);
     }
     return valid;
@@ -200,7 +206,7 @@ static SmemSizes compute_smem_sizes(const HybridEpConfigInstance& c) {
         if (c.forward_dispatch_api)
             b.add((int64_t)c.num_of_stages_dispatch_api * c.num_of_experts_per_rank * c.num_of_ranks_per_node * 4, 16);
         if (is_fp8)
-            b.add((int64_t)c.num_of_stages_dispatch_api * (c.hidden_dim / 128) * 4, 16);
+            b.add((int64_t)c.num_of_stages_dispatch_api * (c.hidden_dim / c.scale_block_size) * 4, 16);
         if (multinode)
             b.add((int64_t)c.num_of_tokens_per_chunk_dispatch_api * (c.num_of_nodes - 1), 16);
         b.add((int64_t)c.num_of_stages_dispatch_api * 2 * 8, 8);
@@ -220,7 +226,7 @@ static SmemSizes compute_smem_sizes(const HybridEpConfigInstance& c) {
         if (c.forward_dispatch_api)
             b.add((int64_t)c.num_of_stages_permute_block_dispatch_api * c.num_of_experts_per_rank * c.num_of_ranks_per_node * 4, 16);
         if (is_fp8)
-            b.add((int64_t)c.num_of_stages_permute_block_dispatch_api * (c.hidden_dim / 128) * 4, 16);
+            b.add((int64_t)c.num_of_stages_permute_block_dispatch_api * (c.hidden_dim / c.scale_block_size) * 4, 16);
         b.add((int64_t)c.num_of_stages_permute_block_dispatch_api * 2 * 8, 8);
         result.permute_block = b.total();
     }
@@ -295,6 +301,7 @@ public:
         int num_of_ranks_per_node,
         int num_of_nodes,
         bool use_fp8 = false,
+        int scale_block_size = 128,
         std::optional<int> num_sms_dispatch_api = std::nullopt,
         std::optional<int> num_sms_combine_api = std::nullopt,
         std::optional<int> num_sms_preprocessing_api = std::nullopt,
@@ -330,6 +337,7 @@ public:
         buffer_config.num_of_blocks_combine_api = sms_combine;
         buffer_config.num_of_blocks_preprocessing_api = sms_preprocessing;
         buffer_config.token_data_type = use_fp8 ? APP_TOKEN_DATA_TYPE::UINT8 : APP_TOKEN_DATA_TYPE::UINT16;
+        buffer_config.scale_block_size = use_fp8 ? scale_block_size : 128;
         buffer_config.num_of_tokens_per_chunk_dispatch_api = get_env_int("NUM_OF_TOKENS_PER_CHUNK_DISPATCH_API", 64);
         buffer_config.num_of_tokens_per_chunk_combine_api = get_env_int("NUM_OF_TOKENS_PER_CHUNK_COMBINE_API", 64);
         buffer_config.num_of_dispatch_chunks = (buffer_config.max_num_of_tokens_per_rank - 1)
@@ -360,6 +368,7 @@ public:
         config.num_of_blocks_dispatch_api = buffer_config.num_of_blocks_dispatch_api;
         config.num_of_blocks_combine_api = buffer_config.num_of_blocks_combine_api;
         config.token_data_type = buffer_config.token_data_type;
+        config.scale_block_size = buffer_config.scale_block_size;
 
         // Env-var defaults (runtime chunk sizes use 64, different from buffer's 32)
         config.num_of_threads_per_block_preprocessing_api = get_env_int("NUM_OF_THREADS_PER_BLOCK_PREPROCESSING_API", 256);

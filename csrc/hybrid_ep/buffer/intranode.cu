@@ -199,7 +199,7 @@ void NVLCoordinator::allocate_dispatch_buffers() {
     auto expert_output_token_elts = max_num_of_tokens * buffer_config.hidden_dim;
     auto expert_output_prob_elts = max_num_of_tokens * 
                                    (buffer_config.num_of_experts_per_rank * buffer_config.num_of_ranks_per_node);
-    auto expert_output_scaling_factor_elts = max_num_of_tokens * (buffer_config.hidden_dim / 128);
+    auto expert_output_scaling_factor_elts = max_num_of_tokens * (buffer_config.hidden_dim / buffer_config.scale_block_size);
   
     // Allocate main buffers
     if (use_shared_buffer) {

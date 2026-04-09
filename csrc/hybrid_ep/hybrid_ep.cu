@@ -322,7 +322,7 @@ HybridEPBuffer::dispatch_with_permute(
    args.local_expert_output_prob = torch::empty({handle.num_permuted_tokens}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
  }
  if (config.token_data_type == APP_TOKEN_DATA_TYPE::UINT8) {
-   args.local_expert_output_scaling_factor = torch::empty({handle.num_permuted_tokens, config.hidden_dim / 128}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
+   args.local_expert_output_scaling_factor = torch::empty({handle.num_permuted_tokens, config.hidden_dim / config.scale_block_size}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
  }
  
  // Run the full dispatch operation

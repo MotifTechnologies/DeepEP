@@ -320,7 +320,7 @@ void Executor::dispatch_postprocess(HybridEpConfigInstance config, DispatchArgs&
         permute_args.output_scaling_factor_ptr = args.local_expert_output_scaling_factor.has_value() ?
             args.local_expert_output_scaling_factor.value().data_ptr<float>() : nullptr;
         permute_args.hidden_size = config.hidden_dim;
-        permute_args.scales_per_token = config.hidden_dim / 128;
+        permute_args.scales_per_token = config.hidden_dim / config.scale_block_size;
         permute_args.num_dispatched_token_tensor = args.num_dispatched_tokens_tensor.value();
         permute_args.num_permuted_token = args.num_permuted_tokens;
         permute_args.num_ranks_per_node = config.num_of_ranks_per_node;
@@ -365,9 +365,9 @@ void Executor::dispatch_postprocess(HybridEpConfigInstance config, DispatchArgs&
         if(config.token_data_type == APP_TOKEN_DATA_TYPE::UINT8) {
             args.local_expert_output_scaling_factor = torch::empty({
                     num_dispatched_tokens, 
-                    config.hidden_dim / 128}, 
+                    config.hidden_dim / config.scale_block_size}, 
                     torch::dtype(torch::kFloat32).device(torch::kCUDA));
-            auto scaling_factor_sz = static_cast<size_t>(num_dispatched_tokens) * config.hidden_dim / 128 * sizeof(float);
+            auto scaling_factor_sz = static_cast<size_t>(num_dispatched_tokens) * config.hidden_dim / config.scale_block_size * sizeof(float);
             CUDA_CHECK(cudaMemcpyAsync(args.local_expert_output_scaling_factor.value().data_ptr<float>(),
                 intra_node_dispatch_buffers->expert_output_scaling_factor,
                 scaling_factor_sz, cudaMemcpyDeviceToDevice, args.stream));

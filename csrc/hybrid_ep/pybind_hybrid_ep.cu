@@ -36,6 +36,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def_readwrite("num_of_ranks_per_node", &BufferConfig::num_of_ranks_per_node)
         .def_readwrite("num_of_nodes", &BufferConfig::num_of_nodes)
         .def_readwrite("token_data_type", &BufferConfig::token_data_type)
+        .def_readwrite("scale_block_size", &BufferConfig::scale_block_size)
         .def_readwrite("num_of_blocks_preprocessing_api", &BufferConfig::num_of_blocks_preprocessing_api)
         .def_readwrite("num_of_blocks_dispatch_api", &BufferConfig::num_of_blocks_dispatch_api)
         .def_readwrite("num_of_blocks_combine_api", &BufferConfig::num_of_blocks_combine_api)
@@ -52,7 +53,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
                  " num_of_ranks_per_node=" + std::to_string(config.num_of_ranks_per_node) +
                  " num_of_nodes=" + std::to_string(config.num_of_nodes) +
                  " token_data_type=" + type_to_string(config.token_data_type) +
-                 " num_of_blocks_preprocessing_api=" + std::to_string(config.num_of_blocks_preprocessing_api) + 
+                 " scale_block_size=" + std::to_string(config.scale_block_size) +
+                 " num_of_blocks_preprocessing_api=" + std::to_string(config.num_of_blocks_preprocessing_api) +
                  " num_of_blocks_dispatch_api=" + std::to_string(config.num_of_blocks_dispatch_api) + 
                  " num_of_blocks_combine_api=" + std::to_string(config.num_of_blocks_combine_api) + 
                  " num_of_tokens_per_chunk_dispatch_api=" + std::to_string(config.num_of_tokens_per_chunk_dispatch_api) + 
@@ -86,6 +88,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
                        &HybridEpConfigInstance::num_of_blocks_unpermute)
         // Dispatch API Config
         .def_readwrite("token_data_type", &HybridEpConfigInstance::token_data_type)
+        .def_readwrite("scale_block_size", &HybridEpConfigInstance::scale_block_size)
         .def_readwrite("num_of_stages_dispatch_api",
                        &HybridEpConfigInstance::num_of_stages_dispatch_api)
         .def_readwrite("num_of_stages_permute_block_dispatch_api",
@@ -128,11 +131,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
                  std::to_string(config.hidden_dim) + " max_num_of_tokens_per_rank=" +
                  std::to_string(config.max_num_of_tokens_per_rank) +
                  " token_data_type=" + type_to_string(config.token_data_type) +
+                 " scale_block_size=" + std::to_string(config.scale_block_size) +
                  ">";
         });
 
     pybind11::class_<Configurer>(m, "Configurer")
-        .def(py::init<int, int, int, int, int, bool,
+        .def(py::init<int, int, int, int, int, bool, int,
                       std::optional<int>, std::optional<int>, std::optional<int>,
                       std::optional<int>, std::optional<int>>(),
             py::arg("hidden_dim"),
@@ -141,6 +145,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             py::arg("num_of_ranks_per_node"),
             py::arg("num_of_nodes"),
             py::arg("use_fp8") = false,
+            py::arg("scale_block_size") = 128,
             py::arg("num_sms_dispatch_api") = std::nullopt,
             py::arg("num_sms_combine_api") = std::nullopt,
             py::arg("num_sms_preprocessing_api") = std::nullopt,

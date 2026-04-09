@@ -40,6 +40,7 @@ class HybridEPBuffer:
         max_num_of_tokens_per_rank: int,
         num_local_experts: int,
         use_fp8: bool = False,
+        scale_block_size: int = 128,
         # Device-SM occupancy setting
         num_sms_dispatch_api: int = None,
         num_sms_combine_api: int = None,
@@ -89,6 +90,7 @@ class HybridEPBuffer:
             num_of_ranks_per_node=self.num_of_hybrid_ep_ranks_per_nvlink_domain,
             num_of_nodes=self.num_of_nodes,
             use_fp8=use_fp8,
+            scale_block_size=scale_block_size,
             num_sms_dispatch_api=num_sms_dispatch_api,
             num_sms_combine_api=num_sms_combine_api,
             num_sms_preprocessing_api=num_sms_preprocessing_api,

@@ -391,7 +391,7 @@ void RDMACoordinator::allocate_dispatch_buffers(){
                             * buffer_config.num_of_ranks_per_node 
                             * buffer_config.num_of_nodes);
   auto attn_input_token_scaling_factor_elts = buffer_config.max_num_of_tokens_per_rank 
-                                            * (buffer_config.hidden_dim / 128);
+                                            * (buffer_config.hidden_dim / buffer_config.scale_block_size);
   auto rdma_inter_node_group_token_elts = buffer_config.max_num_of_tokens_per_rank * 
                                           (buffer_config.num_of_nodes - 1) * 
                                           buffer_config.hidden_dim;
@@ -400,7 +400,7 @@ void RDMACoordinator::allocate_dispatch_buffers(){
                                         * (buffer_config.num_of_experts_per_rank 
                                         * buffer_config.num_of_ranks_per_node);
   auto rdma_inter_node_group_scaling_factor_elts = buffer_config.max_num_of_tokens_per_rank * 
-                                                    (buffer_config.num_of_nodes - 1) * (buffer_config.hidden_dim / 128);
+                                                    (buffer_config.num_of_nodes - 1) * (buffer_config.hidden_dim / buffer_config.scale_block_size);
   size_t rdma_inter_node_group_flags_barrier_idx = (size_t)((buffer_config.max_num_of_tokens_per_rank - 1) /
                                            buffer_config.num_of_tokens_per_chunk_dispatch_api + 1) *
                                           (buffer_config.num_of_nodes - 1);
@@ -468,7 +468,7 @@ void RDMACoordinator::allocate_dispatch_buffers(){
   remote_info *my_dispatch_info = static_cast<remote_info *>(calloc(num_of_dispatch_qps, sizeof(remote_info)));
   int token_stride = buffer_config.max_num_of_tokens_per_rank * buffer_config.hidden_dim;
   int prob_stride = buffer_config.max_num_of_tokens_per_rank * buffer_config.num_of_experts_per_rank * buffer_config.num_of_ranks_per_node;
-  int scaling_factor_stride = buffer_config.max_num_of_tokens_per_rank * (buffer_config.hidden_dim / 128);
+  int scaling_factor_stride = buffer_config.max_num_of_tokens_per_rank * (buffer_config.hidden_dim / buffer_config.scale_block_size);
   // For each queue pair to the same remote. 
   for (int qp_idx = 0; qp_idx < buffer_config.num_of_blocks_dispatch_api; ++qp_idx) {
     // For each remote.

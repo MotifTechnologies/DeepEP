@@ -25,7 +25,7 @@ struct PermuteArgs {
 
   // The shape message of the input
   int hidden_size;
-  int scales_per_token; // Now is hidden_size/128
+  int scales_per_token; // hidden_size / scale_block_size (128 or 32)
   torch::Tensor num_dispatched_token_tensor; // We assume it is only valid on GPU
   int64_t num_permuted_token;
   int num_ranks_per_node; // Probs dimension 0 = num_ranks_per_node * num_of_local_experts

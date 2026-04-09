@@ -23,6 +23,12 @@
 #include <cuda_pipeline_primitives.h>
 #endif
 
+// FP8 scale factor granularity: number of elements per scale factor.
+// Overridden by JIT compiler via #define before including this header.
+#ifndef SCALE_BLOCK_SIZE
+#define SCALE_BLOCK_SIZE 128
+#endif
+
 namespace hybrid_ep{
 
 #ifdef HYBRID_EP_BUILD_MULTINODE_ENABLE
@@ -119,7 +125,7 @@ struct dispatch_kernel_dynamic_shared_memory_buffer_t<uint8_t, NUM_OF_STAGES, HI
   // Shared memory Prob buffer. Only used in FW dispatch. Should be 16B alignment so can be used with TMA. 128B is too strict.
   alignas(16) float intra_node_prob_buffer[NUM_OF_STAGES][NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory attn_to_rdma_map buffer, Should be 16B alignment.
   alignas(16) bool attn_to_rdma_map_buffer[NUM_OF_TOKENS_PER_CHUNK * (NUM_OF_NODES - 1)];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
@@ -177,7 +183,7 @@ struct dispatch_kernel_dynamic_shared_memory_buffer_t<uint8_t, NUM_OF_STAGES, HI
   // Shared memory ping-pong buffer for sparse_to_dense map for token data chunks. Should be 128B alignment for optimal perf for TMA.
   alignas(128) int32_t sparse_to_dense_map_buffer[2][NUM_OF_TOKENS_PER_CHUNK][NUM_OF_RANKS_PER_NODE];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory attn_to_rdma_map buffer, Should be 16B alignment.
   alignas(16) bool attn_to_rdma_map_buffer[NUM_OF_TOKENS_PER_CHUNK * (NUM_OF_NODES - 1)];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
@@ -235,7 +241,7 @@ struct dispatch_kernel_dynamic_shared_memory_buffer_t<uint8_t, NUM_OF_STAGES, HI
   // Shared memory Prob buffer. Only used in FW dispatch. Should be 16B alignment so can be used with TMA. 128B is too strict.
   alignas(16) float intra_node_prob_buffer[NUM_OF_STAGES][NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
   alignas(8) uint64_t intra_node_mbarrier_buffer[NUM_OF_STAGES][2]; 
   // Shared memory mbarrier that protect sparse_to_dense map. Should be 8B alignment(natural alignment).
@@ -275,7 +281,7 @@ struct dispatch_kernel_dynamic_shared_memory_buffer_t<uint8_t, NUM_OF_STAGES, HI
   // Shared memory ping-pong buffer for sparse_to_dense map for token data chunks. Should be 128B alignment for optimal perf for TMA.
   alignas(128) int32_t sparse_to_dense_map_buffer[2][NUM_OF_TOKENS_PER_CHUNK][NUM_OF_RANKS_PER_NODE];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float intra_node_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
   alignas(8) uint64_t intra_node_mbarrier_buffer[NUM_OF_STAGES][2]; 
   // Shared memory mbarrier that protect sparse_to_dense map. Should be 8B alignment(natural alignment).
@@ -321,7 +327,7 @@ struct dispatch_kernel_permute_block_dynamic_shared_memory_buffer_t<uint8_t, NUM
   // Shared memory Prob buffer. Only used in FW dispatch. Should be 16B alignment so can be used with TMA. 128B is too strict.
   alignas(16) float permute_prob_buffer[NUM_OF_STAGES][NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float permute_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float permute_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
   alignas(8) uint64_t permute_mbarrier_buffer[NUM_OF_STAGES][2];
 };
@@ -334,7 +340,7 @@ struct dispatch_kernel_permute_block_dynamic_shared_memory_buffer_t<uint8_t, NUM
   // Shared memory token buffer. Should be 128B alignment for optimal perf for TMA.
   alignas(128) uint8_t permute_token_buffer[NUM_OF_STAGES][HIDDEN_DIM];
   // Shared memory scaling factor buffer. Only when using FP8 token. Should be 16B alignment so can be used with TMA. 128B is too strict.
-  alignas(16) float permute_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / 128];
+  alignas(16) float permute_scaling_factor_buffer[NUM_OF_STAGES][HIDDEN_DIM / SCALE_BLOCK_SIZE];
   // Shared memory mbarrier that protect token entry, 1st for producer->consumer, 2nd for consumer->producer. Should be 8B alignment(natural alignment).
   alignas(8) uint64_t permute_mbarrier_buffer[NUM_OF_STAGES][2];
 };
@@ -769,9 +775,9 @@ inline __device__ void N2N_warp_group_device_function(const int node_rank,
 
           if constexpr (std::is_same<TOKEN_DATA_TYPE, uint8_t>::value) {
             buffer_sub_idx +=1;
-            size_t local_offset = token_idx * (HIDDEN_DIM / 128) * sizeof(float);
-            size_t remote_offset = token_idx * (HIDDEN_DIM / 128) * sizeof(float);
-            constexpr size_t sf_size = (HIDDEN_DIM / 128) * sizeof(float);
+            size_t local_offset = token_idx * (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float);
+            size_t remote_offset = token_idx * (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float);
+            constexpr size_t sf_size = (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float);
   
             nixlMemViewElement src_desc{nixl_ctx->local_mvh, buffer_sub_idx, local_offset};
             nixlMemViewElement dst_desc{nixl_ctx->remote_data_mvh, (size_t)remote_idx * dst_mvh_stride + buffer_sub_idx, remote_offset};
@@ -1047,11 +1053,11 @@ inline __device__ void N2N_warp_group_device_function(const int node_rank,
             doca_gpu_dev_verbs_wqe_prepare_write(qp, sf_wqe_ptr, my_wqe_idx,
                                                       DOCA_GPUNETIO_IB_MLX5_OPCODE_RDMA_WRITE,
                                                       DOCA_GPUNETIO_IB_MLX5_WQE_CTRL_CQ_UPDATE, 0,
-                                                      smem_mr_info_ptr[remote_idx].scaling_factor_raddr + token_idx * (HIDDEN_DIM / 128) * sizeof(float),
+                                                      smem_mr_info_ptr[remote_idx].scaling_factor_raddr + token_idx * (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float),
                                                       smem_mr_info_ptr[remote_idx].scaling_factor_rkey,
-                                                      smem_mr_info_ptr[remote_idx].scaling_factor_laddr + token_idx * (HIDDEN_DIM / 128) * sizeof(float),
+                                                      smem_mr_info_ptr[remote_idx].scaling_factor_laddr + token_idx * (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float),
                                                       smem_mr_info_ptr[remote_idx].scaling_factor_lkey,
-                                                      (HIDDEN_DIM / 128) * sizeof(float));
+                                                      (HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float));
           }
         }
         curr_wqe_idx += write_cnt * WQE_NUM_RATIO;
@@ -1188,7 +1194,7 @@ inline __device__ void G2S_warp_group_device_function(const int node_rank,
             prob_load_base_addr = rdma_inter_node_group_prob + chunk_first_token_id * (NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE);
           }
           if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-            scaling_factor_load_base_addr = rdma_inter_node_group_scaling_factor + chunk_first_token_id * (HIDDEN_DIM / 128);
+            scaling_factor_load_base_addr = rdma_inter_node_group_scaling_factor + chunk_first_token_id * (HIDDEN_DIM / SCALE_BLOCK_SIZE);
           }
         }else{
           int chunk_first_token_id = i * NUM_OF_TOKENS_PER_CHUNK;
@@ -1197,7 +1203,7 @@ inline __device__ void G2S_warp_group_device_function(const int node_rank,
             prob_load_base_addr = attn_input_prob + chunk_first_token_id * (NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE * NUM_OF_NODES);
           }
           if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-            scaling_factor_load_base_addr = attn_input_token_scaling_factor + chunk_first_token_id * (HIDDEN_DIM / 128);
+            scaling_factor_load_base_addr = attn_input_token_scaling_factor + chunk_first_token_id * (HIDDEN_DIM / SCALE_BLOCK_SIZE);
           }
         }
         //#pragma unroll
@@ -1252,11 +1258,11 @@ inline __device__ void G2S_warp_group_device_function(const int node_rank,
                 cuda::ptx::cp_async_bulk(cuda::ptx::space_shared,
                                          cuda::ptx::space_global,
                                          reinterpret_cast<void*>(&smem_buffer_ptr->intra_node_scaling_factor_buffer[stage][0]),
-                                         reinterpret_cast<const void*>(scaling_factor_load_base_addr + (current_token_id * (HIDDEN_DIM / 128))),
-                                         (uint32_t)((HIDDEN_DIM / 128) * sizeof(float)),
+                                         reinterpret_cast<const void*>(scaling_factor_load_base_addr + (current_token_id * (HIDDEN_DIM / SCALE_BLOCK_SIZE))),
+                                         (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)),
                                          &smem_buffer_ptr->intra_node_mbarrier_buffer[stage][0]);
 
-                total_tx_size += (uint32_t)((HIDDEN_DIM / 128) * sizeof(float));
+                total_tx_size += (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float));
               }
 
               cuda::ptx::mbarrier_arrive_expect_tx(cuda::ptx::sem_release,
@@ -1531,12 +1537,12 @@ inline __device__ void S2G_warp_group_device_function(const int local_rank,
 
                     // Store the scaling factor from shared to remote global for FP8 tokens.
                     if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-                      float* remote_scaling_factor_addr = remote_expert_output_scaling_factor[remote_rank_id] + (output_buffer_index * (HIDDEN_DIM / 128));
+                      float* remote_scaling_factor_addr = remote_expert_output_scaling_factor[remote_rank_id] + (output_buffer_index * (HIDDEN_DIM / SCALE_BLOCK_SIZE));
                       cuda::ptx::cp_async_bulk(cuda::ptx::space_global,
                                                cuda::ptx::space_shared,
                                                reinterpret_cast<void*>(remote_scaling_factor_addr),
                                                reinterpret_cast<const void*>(&smem_buffer_ptr->intra_node_scaling_factor_buffer[stage][0]),
-                                               (uint32_t)((HIDDEN_DIM / 128) * sizeof(float)));
+                                               (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)));
 
                     }
                   }
@@ -1761,7 +1767,7 @@ inline __device__ void permute_G2S_warp_group_device_function(const int node_ran
         prob_load_base_addr = remote_expert_output_prob + current_chunk_starting_location_within_expert_output_buffer * (NUM_OF_EXPERTS_PER_RANK * NUM_OF_RANKS_PER_NODE);
       }
       if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-        scaling_factor_load_base_addr = remote_expert_output_scaling_factor + current_chunk_starting_location_within_expert_output_buffer * (HIDDEN_DIM / 128);
+        scaling_factor_load_base_addr = remote_expert_output_scaling_factor + current_chunk_starting_location_within_expert_output_buffer * (HIDDEN_DIM / SCALE_BLOCK_SIZE);
       }
 
       // Future optimization point: considering that any chunk in per-rank buffer is a contiguous buffer, so theoretically we can do token coalescing in permute/unpermute up to chunk granularity.
@@ -1801,11 +1807,11 @@ inline __device__ void permute_G2S_warp_group_device_function(const int node_ran
           cuda::ptx::cp_async_bulk(cuda::ptx::space_shared,
                                    cuda::ptx::space_global,
                                    reinterpret_cast<void*>(&smem_buffer_ptr->permute_scaling_factor_buffer[stage][0]),
-                                   reinterpret_cast<const void*>(scaling_factor_load_base_addr + (j * (HIDDEN_DIM / 128))),
-                                   (uint32_t)((HIDDEN_DIM / 128) * sizeof(float)),
+                                   reinterpret_cast<const void*>(scaling_factor_load_base_addr + (j * (HIDDEN_DIM / SCALE_BLOCK_SIZE))),
+                                   (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)),
                                    &smem_buffer_ptr->permute_mbarrier_buffer[stage][0]);
 
-          total_tx_size += (uint32_t)((HIDDEN_DIM / 128) * sizeof(float));
+          total_tx_size += (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float));
         }
 
         cuda::ptx::mbarrier_arrive_expect_tx(cuda::ptx::sem_release,
@@ -1915,10 +1921,10 @@ inline __device__ void permute_S2G_warp_group_device_function(const int local_ra
 
   // We use uint4(STG.128) as the unit to init padding scaling vector.
   if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-    static_assert(((HIDDEN_DIM / 128) * sizeof(float)) % 16 == 0, "The size of each scaling vector must be multiple of 16B.");
+    static_assert(((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)) % 16 == 0, "The size of each scaling vector must be multiple of 16B.");
   }
   using scaling_factor_init_t = uint4;
-  constexpr int NUM_OF_INIT_ITER_PER_PADDING_SCALING_FACTOR = ((HIDDEN_DIM / 128) * sizeof(float)) / sizeof(scaling_factor_init_t);
+  constexpr int NUM_OF_INIT_ITER_PER_PADDING_SCALING_FACTOR = ((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)) / sizeof(scaling_factor_init_t);
 
   // We use float(STG.32) as the unit to init padding prob element(each padding token in the local experts' output buffer only has 1 prob element, not a prob vec).
   using prob_init_t = float;
@@ -1946,7 +1952,7 @@ inline __device__ void permute_S2G_warp_group_device_function(const int local_ra
 
     // Divide padding scaling factor into init unit and assigned them to all permute_S2G threads for FP8 tokens.
     if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-      scaling_factor_init_t* padding_scaling_factor_base_addr = reinterpret_cast<scaling_factor_init_t*>(local_expert_output_scaling_factor + padding_token_index * (HIDDEN_DIM / 128));
+      scaling_factor_init_t* padding_scaling_factor_base_addr = reinterpret_cast<scaling_factor_init_t*>(local_expert_output_scaling_factor + padding_token_index * (HIDDEN_DIM / SCALE_BLOCK_SIZE));
       for(int j = PERMUTE_S2G_GROUP::thread_rank(); j < NUM_OF_INIT_ITER_PER_PADDING_SCALING_FACTOR; j += PERMUTE_S2G_GROUP::size()){
         padding_scaling_factor_base_addr[j] = make_uint4(0, 0, 0, 0);
       }
@@ -2038,12 +2044,12 @@ inline __device__ void permute_S2G_warp_group_device_function(const int local_ra
 
               // Store the scaling factor from shared to local global(local expert output buffers) for FP8 tokens.
               if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
-                float* local_expert_scaling_factor_addr = local_expert_output_scaling_factor + (output_buffer_index * (HIDDEN_DIM / 128));
+                float* local_expert_scaling_factor_addr = local_expert_output_scaling_factor + (output_buffer_index * (HIDDEN_DIM / SCALE_BLOCK_SIZE));
                 cuda::ptx::cp_async_bulk(cuda::ptx::space_global,
                                          cuda::ptx::space_shared,
                                          reinterpret_cast<void*>(local_expert_scaling_factor_addr),
                                          reinterpret_cast<const void*>(&smem_buffer_ptr->permute_scaling_factor_buffer[stage][0]),
-                                         (uint32_t)((HIDDEN_DIM / 128) * sizeof(float)));
+                                         (uint32_t)((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)));
 
               }
             }
@@ -4208,9 +4214,9 @@ __global__ void dispatch_kernel(const __grid_constant__ dispatch_kernel_param_t<
   static_assert((HIDDEN_DIM * sizeof(TOKEN_DATA_TYPE)) % 16 == 0, "Currently, the size of token must be multiple of 16B to make TMA work.");
   if constexpr(std::is_same<TOKEN_DATA_TYPE, uint8_t>::value){
     // If FP8 token is used, HIDDEN_DIM must be multiple of 128 for scaling factor usage.
-    static_assert(HIDDEN_DIM % 128 == 0, "HIDDEN_DIM must be multiple of 128 for scaling factor");
+    static_assert(HIDDEN_DIM % SCALE_BLOCK_SIZE == 0, "HIDDEN_DIM must be multiple of SCALE_BLOCK_SIZE for scaling factor");
     // If FP8 token is used, HIDDEN_DIM must be multiple of 512 to make scaling factor multiple of 16B to make TMA work.
-    static_assert(((HIDDEN_DIM / 128) * sizeof(float)) % 16 == 0, "Currently, scaling factor per token must be multiple of 16B.");
+    static_assert(((HIDDEN_DIM / SCALE_BLOCK_SIZE) * sizeof(float)) % 16 == 0, "Currently, scaling factor per token must be multiple of 16B.");
   }
 
 
